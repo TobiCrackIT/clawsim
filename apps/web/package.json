@@ -1,0 +1,11 @@
+{
+  "name": "@clawsim/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"web scaffold ready\"",
+    "build": "echo \"web build placeholder\"",
+    "test": "echo \"web tests placeholder\"",
+    "lint": "echo \"web lint placeholder\""
+  }
+}

@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum CallStatus {
+  queued
+  initiated
+  in_progress
+  completed
+  failed
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams Team[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  accountId String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  users        User[]
+  phoneNumbers PhoneNumber[]
+  calls        Call[]
+  leads        Lead[]
+  appointments Appointment[]
+
+  @@index([accountId])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  teamId    String
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+model PhoneNumber {
+  id            String   @id @default(cuid())
+  teamId         String
+  e164           String   @unique
+  provider       String   @default("twilio")
+  providerSid    String?
+  country        String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  calls Call[]
+
+  @@index([teamId])
+}
+
+model Call {
+  id            String     @id @default(cuid())
+  teamId         String
+  phoneNumberId  String?
+  externalCallId String?    @unique
+  toNumber       String
+  fromNumber     String?
+  status         CallStatus @default(queued)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  durationSec    Int?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  phoneNumber PhoneNumber? @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  lead        Lead?
+  messages    Message[]
+
+  @@index([teamId])
+  @@index([status])
+}
+
+model Lead {
+  id              String   @id @default(cuid())
+  teamId           String
+  callId           String   @unique
+  contactName      String?
+  contactPhone     String?
+  contactEmail     String?
+  intent           String?
+  location         String?
+  budget           String?
+  timeline         String?
+  financingStatus  String?
+  outcome          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  appointments Appointment[]
+
+  @@index([teamId])
+  @@index([contactPhone])
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  teamId        String
+  leadId        String?
+  scheduledFor  DateTime
+  timezone      String?
+  status        String   @default("booked")
+  externalRef   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([leadId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  callId      String
+  direction   String
+  channel     String   @default("voice")
+  body        String
+  createdAt   DateTime @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+}
