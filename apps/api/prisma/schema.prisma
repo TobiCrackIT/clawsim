@@ -86,10 +86,11 @@ model Call {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  phoneNumber PhoneNumber? @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
-  lead        Lead?
-  messages    Message[]
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  phoneNumber   PhoneNumber?   @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  lead          Lead?
+  messages      Message[]
+  webhookEvents WebhookEvent[]
 
   @@index([teamId])
   @@index([status])
@@ -147,6 +148,19 @@ model Message {
   createdAt   DateTime @default(now())
 
   call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+}
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  externalEventId String   @unique
+  callId          String?
+  eventType       String
+  payload         Json
+  createdAt       DateTime @default(now())
+
+  call Call? @relation(fields: [callId], references: [id], onDelete: SetNull)
 
   @@index([callId])
 }

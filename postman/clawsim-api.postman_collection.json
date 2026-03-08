@@ -76,12 +76,63 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "Vapi Webhook Replay (Signed)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.request.body.raw || '';",
+              "const secret = pm.variables.get('vapiWebhookSecret');",
+              "if (!secret) { throw new Error('Set vapiWebhookSecret collection variable'); }",
+              "const signature = CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);",
+              "pm.request.headers.upsert({ key: 'x-vapi-signature', value: signature });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"evt_postman_001\",\n  \"type\": \"call.status\",\n  \"call\": {\n    \"id\": \"{{externalCallId}}\",\n    \"status\": \"in-progress\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/webhooks/vapi",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "webhooks",
+            "vapi"
+          ]
+        }
+      },
+      "response": []
     }
   ],
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:3000"
+    },
+    {
+      "key": "vapiWebhookSecret",
+      "value": ""
+    },
+    {
+      "key": "externalCallId",
+      "value": "replace-with-vapi-call-id"
     }
   ]
 }
