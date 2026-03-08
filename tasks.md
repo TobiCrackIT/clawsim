@@ -2,7 +2,7 @@
 
 # Alice Calling Bridge — Implementation Tasks
 
-_Last updated: 2026-03-07 (UTC)_
+_Last updated: 2026-03-08 (UTC)_
 
 > Note: Integration tests and automated test requirements are deferred for now. Use manual verification steps only.
 
@@ -15,6 +15,7 @@ _Last updated: 2026-03-07 (UTC)_
 - Initial markets: UK and USA
 - Accounts: Vapi + Twilio already available
 - Build priority: API first, dashboard later
+- No Docker usage (local/native tooling + managed services only)
 
 ## Phase 1 — Repo + Boilerplate
 

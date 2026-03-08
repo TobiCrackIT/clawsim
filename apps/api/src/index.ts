@@ -1,6 +1,14 @@
 import express from 'express';
 import pino from 'pino';
+import { z } from 'zod';
 import { prisma } from './lib/prisma.js';
+import { startVapiCall } from './lib/vapi.js';
+
+const startCallSchema = z.object({
+  to: z.string().regex(/^\+[1-9]\d{7,14}$/, 'Phone must be in E.164 format'),
+  campaignType: z.string().min(1),
+  context: z.record(z.string(), z.unknown()).optional()
+});
 
 export function createApp() {
   const app = express();
@@ -36,6 +44,59 @@ export function createApp() {
     } catch (error) {
       logger.error({ error }, 'db-check failed');
       res.status(500).json({ error: 'db-check failed' });
+    }
+  });
+
+  app.post('/v1/calls/start', async (req, res) => {
+    const parsed = startCallSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        issues: parsed.error.flatten()
+      });
+    }
+
+    const { to, campaignType, context } = parsed.data;
+    const assistantId = process.env.VAPI_ASSISTANT_ID;
+
+    if (!assistantId) {
+      return res.status(500).json({ error: 'VAPI_ASSISTANT_ID is not set' });
+    }
+
+    const teamId = 'team_clawsim_demo';
+
+    try {
+      const createdCall = await prisma.call.create({
+        data: {
+          teamId,
+          toNumber: to,
+          status: 'queued'
+        }
+      });
+
+      const vapiCall = await startVapiCall({
+        to,
+        assistantId,
+        metadata: {
+          campaignType,
+          context,
+          internalCallId: createdCall.id
+        }
+      });
+
+      await prisma.call.update({
+        where: { id: createdCall.id },
+        data: {
+          externalCallId: vapiCall.id,
+          status: 'initiated'
+        }
+      });
+
+      return res.status(200).json({ callId: createdCall.id, status: 'initiated' });
+    } catch (error) {
+      logger.error({ error }, 'failed to start call');
+      return res.status(500).json({ error: 'Failed to start call' });
     }
   });
 
