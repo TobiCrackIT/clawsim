@@ -17,6 +17,13 @@ export async function startVapiCall(input: StartVapiCallInput): Promise<StartVap
     throw new Error('VAPI_API_KEY is not set');
   }
 
+  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  const phoneNumber = process.env.VAPI_PHONE_NUMBER;
+
+  if (!phoneNumberId && !phoneNumber) {
+    throw new Error('Set either VAPI_PHONE_NUMBER_ID or VAPI_PHONE_NUMBER');
+  }
+
   const response = await fetch(`${VAPI_BASE_URL}/call`, {
     method: 'POST',
     headers: {
@@ -25,6 +32,8 @@ export async function startVapiCall(input: StartVapiCallInput): Promise<StartVap
     },
     body: JSON.stringify({
       assistantId: input.assistantId,
+      phoneNumberId,
+      phoneNumber,
       customer: {
         number: input.to
       },
