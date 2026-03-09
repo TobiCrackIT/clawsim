@@ -141,8 +141,17 @@ export function createApp() {
 
       return res.status(200).json({ callId: createdCall.id, status: 'initiated' });
     } catch (error) {
-      logger.error({ error }, 'failed to start call');
-      return res.status(500).json({ error: 'Failed to start call' });
+      logger.error({
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : error
+      }, 'failed to start call');
+      return res.status(500).json({
+        error: 'Failed to start call',
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

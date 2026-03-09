@@ -24,21 +24,30 @@ export async function startVapiCall(input: StartVapiCallInput): Promise<StartVap
     throw new Error('Set either VAPI_PHONE_NUMBER_ID or VAPI_PHONE_NUMBER');
   }
 
+  const payload: any = {
+    assistantId: input.assistantId,
+    customer: {
+      number: input.to
+    },
+    metadata: input.metadata ?? {}
+  };
+
+  if (phoneNumberId) {
+    payload.phoneNumberId = phoneNumberId;
+  } else if (phoneNumber) {
+    payload.phoneNumber = {
+      twilioPhoneNumber: phoneNumber,
+      twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || 'default'
+    };
+  }
+
   const response = await fetch(`${VAPI_BASE_URL}/call`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      assistantId: input.assistantId,
-      phoneNumberId,
-      phoneNumber,
-      customer: {
-        number: input.to
-      },
-      metadata: input.metadata ?? {}
-    })
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
