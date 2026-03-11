@@ -70,9 +70,84 @@ export function createApp() {
     res.status(200).json({ status: 'ok' });
   });
 
-  app.post('/dev/db-check', async (_req, res) => {
+  app.get('/db-status', async (_req, res) => {
     try {
+      // Log environment info (without exposing full connection string)
+      const dbUrl = process.env.DATABASE_URL;
+      const hasDbUrl = !!dbUrl;
+      const dbUrlPrefix = dbUrl ? dbUrl.substring(0, 20) + '...' : 'not set';
+
+      logger.info({
+        hasDbUrl,
+        dbUrlPrefix,
+        nodeEnv: process.env.NODE_ENV
+      }, 'Database connection attempt');
+
+      // Test basic connection
+      await prisma.$queryRaw`SELECT 1 as test`;
+
+      // Count records in each table
+      const [accounts, teams, calls] = await Promise.all([
+        prisma.account.count(),
+        prisma.team.count(),
+        prisma.call.count()
+      ]);
+
+      res.status(200).json({
+        database: 'connected',
+        environment: {
+          hasDbUrl,
+          nodeEnv: process.env.NODE_ENV
+        },
+        counts: { accounts, teams, calls }
+      });
+    } catch (error) {
+      logger.error({
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : error,
+        hasDbUrl: !!process.env.DATABASE_URL,
+        nodeEnv: process.env.NODE_ENV
+      }, 'db-status check failed');
+
+      res.status(500).json({
+        database: 'error',
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        error: error instanceof Error ? error.message : String(error),
+        environment: {
+          hasDbUrl: !!process.env.DATABASE_URL,
+          nodeEnv: process.env.NODE_ENV
+        }
+      });
+    }
+  });
+
+  app.get('/db-health', async (_req, res) => {
+    try {
+      // First, test basic database connection
+      await prisma.$queryRaw`SELECT 1`;
+
+      // Check if team exists, create if not
       const teamId = 'team_clawsim_demo';
+      let team = await prisma.team.findUnique({ where: { id: teamId } });
+
+      if (!team) {
+        // Create account first
+        const account = await prisma.account.create({
+          data: { name: 'Demo Account' }
+        });
+
+        // Create team
+        team = await prisma.team.create({
+          data: {
+            id: teamId,
+            accountId: account.id,
+            name: 'Demo Team'
+          }
+        });
+      }
 
       const call = await prisma.call.create({
         data: {
@@ -86,10 +161,26 @@ export function createApp() {
         where: { id: call.id }
       });
 
-      res.status(200).json({ created: call, fetched });
+      res.status(200).json({
+        success: true,
+        created: call,
+        fetched,
+        team: team
+      });
     } catch (error) {
-      logger.error({ error }, 'db-check failed');
-      res.status(500).json({ error: 'db-check failed' });
+      logger.error({
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+          code: (error as any).code
+        } : error
+      }, 'db-check failed');
+      res.status(500).json({
+        error: 'db-check failed',
+        details: error instanceof Error ? error.message : String(error),
+        code: (error as any)?.code
+      });
     }
   });
 
