@@ -10,12 +10,18 @@ export type StartVapiCallResult = {
   id: string;
 };
 
-export async function startVapiCall(input: StartVapiCallInput): Promise<StartVapiCallResult> {
+function getVapiApiKey(): string {
   const apiKey = process.env.VAPI_API_KEY;
 
   if (!apiKey) {
     throw new Error('VAPI_API_KEY is not set');
   }
+
+  return apiKey;
+}
+
+export async function startVapiCall(input: StartVapiCallInput): Promise<StartVapiCallResult> {
+  const apiKey = getVapiApiKey();
 
   const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
   const phoneNumber = process.env.VAPI_PHONE_NUMBER;
@@ -58,4 +64,20 @@ export async function startVapiCall(input: StartVapiCallInput): Promise<StartVap
   const data = (await response.json()) as { id: string };
 
   return { id: data.id };
+}
+
+export async function endVapiCall(externalCallId: string): Promise<void> {
+  const apiKey = getVapiApiKey();
+
+  const response = await fetch(`${VAPI_BASE_URL}/call/${externalCallId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    }
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Vapi call end failed: ${response.status} ${text}`);
+  }
 }

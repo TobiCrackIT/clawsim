@@ -3,7 +3,7 @@ import express, { type Request } from 'express';
 import pino from 'pino';
 import { z } from 'zod';
 import { prisma } from './lib/prisma.js';
-import { startVapiCall } from './lib/vapi.js';
+import { endVapiCall, startVapiCall } from './lib/vapi.js';
 
 type RequestWithRawBody = Request & { rawBody?: string };
 
@@ -243,6 +243,34 @@ export function createApp() {
         error: 'Failed to start call',
         details: error instanceof Error ? error.message : String(error)
       });
+    }
+  });
+
+  app.post('/v1/calls/:callId/end', async (req, res) => {
+    const { callId } = req.params;
+
+    try {
+      const call = await prisma.call.findUnique({ where: { id: callId } });
+
+      if (!call) {
+        return res.status(404).json({ error: 'Call not found' });
+      }
+
+      if (!call.externalCallId) {
+        return res.status(400).json({ error: 'Call has no externalCallId' });
+      }
+
+      await endVapiCall(call.externalCallId);
+
+      const updated = await prisma.call.update({
+        where: { id: call.id },
+        data: { status: 'completed' }
+      });
+
+      return res.status(200).json({ callId: updated.id, status: updated.status });
+    } catch (error) {
+      logger.error({ error }, 'failed to end call');
+      return res.status(500).json({ error: 'Failed to end call' });
     }
   });
 
